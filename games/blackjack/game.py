@@ -6,7 +6,7 @@ from games.abc import VJoinable, ELobby
 from .resources import *
 from .typings import *
 
-from resources import GenericMultiPage
+from ui import MenuView
 
 class BJLobby:
 
@@ -74,7 +74,7 @@ class BJGame:
     async def update_lobby(self):
         for player in self.lobby:
             embeds = self.embeds(player)
-            view = GenericMultiPage(embeds)
+            view = MenuView(embeds)
             await player.update(embed=embeds[0], view=view)
 
     def hit(self, player: Player | Dealer, visible: bool = True) -> None:

@@ -5,7 +5,8 @@ import discord
 import games
 import json
 
-from resources import GenericMultiPage, add_friendship
+from resources import add_friendship
+from ui import MenuView
 
 
 
@@ -76,9 +77,6 @@ class Game(slash.Group):
                 else:
                     user = await interaction.client.fetch_user(player['user'])
                 embeds[-1].add_field(name=f'{position} • {user.display_name}', value=f'Number of moves: {player["score"]}', inline=False)
-        if len(embeds) > 1:
-            view = GenericMultiPage(embeds)
-            view.response = await interaction.response.send_message(embed=embeds[0], view=view)
-        else:
-            await interaction.response.send_message(embed=embeds[0])
-        
+
+        view = MenuView(embeds)
+        await interaction.response.send_message(embed=embeds[0], view=view)       

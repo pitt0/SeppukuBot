@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING, Literal
 
 import discord
 
-from resources import GenericMultiPage
 
 __all__ = ('CardValues', 'Suits', 'Card', 'Player', 'Dealer')
 
