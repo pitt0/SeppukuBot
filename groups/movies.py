@@ -61,7 +61,7 @@ class Movies(slash.Group):
         await interaction.response.send_message(embed=embeds[0], view=v)
 
     @slash.command(name='add', description='Adds a movie to a WatchList.')
-    async def add_movie(self, interaction: discord.Interaction, title: str, watchlist: WL = WL.Personal):
+    async def add_movie(self, interaction: discord.Interaction, title: str, watchlist: WL = WL.Personal, choose: bool = False):
         movies = self.__fetch_movie(title)
         if len(movies) == 0:
             embed = discord.Embed(
@@ -72,8 +72,14 @@ class Movies(slash.Group):
             await interaction.response.send_message(embed=embed, ephemeral=True)
             return
 
-        movie = movies[0]
-        # TODO: Add a movie selection
+        if choose:
+            v = ui.MovieView(movies)
+            await interaction.response.send_message(embed=movies[0].embed, view=v)
+            await v.wait()
+            movie = v.movie
+        else:
+            movie = movies[0]
+
         match watchlist:
             case WL.Personal:
                 requester = interaction.user
@@ -88,7 +94,13 @@ class Movies(slash.Group):
                 raise ValueError()
 
         self.save_movie(requester.id, movie)
-        await interaction.response.send_message(
+        
+        if interaction.response.is_done():
+            respond = interaction.response.send_message
+        else:
+            respond = interaction.followup.send
+
+        await respond(
             embed=discord.Embed(
                 title='Movie Saved',
                 description=f'{movie.title} has been saved to {person} WatchList',
