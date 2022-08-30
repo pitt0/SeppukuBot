@@ -27,10 +27,10 @@ class WatchList:
 
     path = 'database/movies/watchlist.json'
 
-    cache: dict[int, list[str]]
+    cache: dict[str, list[str]]
 
 
-    def __enter__(self) -> dict[int, list[str]]:
+    def __enter__(self) -> dict[str, list[str]]:
         with open(self.path) as f:
             self.cache = json.load(f)
             return self.cache

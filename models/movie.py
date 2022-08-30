@@ -6,6 +6,8 @@ import imdb
 
 from resources.database import Movies
 
+_imdb = imdb.IMDb()
+
 
 @dataclass
 class Movie:
@@ -33,26 +35,30 @@ class Movie:
     @classmethod
     def from_id(cls, id: str) -> Self:
         with Movies() as cur:
-            cur.execute("SELECT * FROM Movies WHERE ID=?", (id,))
+            cur.execute("SELECT * FROM Movies WHERE ID=?", (int(id),))
             movie = cur.fetchone()
             if movie is None:
-                db = imdb.IMDb()
-                movie = db.get_movie(id)
+                movie = _imdb.get_movie(id)
                 return cls.from_imdb(movie)
             
-            return cls(*movie)
+            return cls.from_db([*movie])
 
     @classmethod
-    def from_db(cls, id: str, movie: list) -> Self:
-        self = cls(id, *movie)
+    def from_db(cls, movie: list) -> Self:
+        movie[3] = movie[3].split(',')
+        movie[4] = movie[4].split(',')
+        self = cls(*movie)
         return self
 
 
     @classmethod
     def from_imdb(cls, movie: imdb.Movie.Movie) -> Self:
 
+        id = movie.getID()
+        movie = _imdb.get_movie(id)
+
         data = {
-            'id': movie.getID(),
+            'id': id,
             'title': str(movie.get('title', 'Unknown')),
             'plot': movie.get('plot', ['-'])[0],
             'genres': movie.get('genre', ['-']),
@@ -67,6 +73,8 @@ class Movie:
                 cast.append(actor.get('name'))
         else:
             cast.append('-')
+
+        data['cast'] = cast
         
         self = cls(**data)
         return self

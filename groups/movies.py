@@ -22,12 +22,13 @@ class Movies(slash.Group):
 
     def __fetch_movie(self, title: str) -> list[models.Movie]:
         movies = []
-        for movie in self.imdb.search_movie(title):
+        for movie in self.imdb.search_movie(title, results=5):
             movies.append(models.Movie.from_imdb(movie))
 
         return movies
 
-    def watch_list(self, requester: int) -> list[models.Movie]:
+    def watch_list(self, requester_id: int) -> list[models.Movie]:
+        requester = str(requester_id)
         with WatchList() as wl:
             if requester not in wl:
                 return []
@@ -35,7 +36,8 @@ class Movies(slash.Group):
         
         return movies
 
-    def save_movie(self, requester: int, movie: models.Movie):
+    def save_movie(self, requester_id: int, movie: models.Movie):
+        requester = str(requester_id)
         with WatchList() as wl:
             if requester not in wl:
                 wl[requester] = []
@@ -43,9 +45,10 @@ class Movies(slash.Group):
         
         with MovieDB() as cur:
             cur.execute("""INSERT INTO Movies (ID, Title, Plot, Cast, Genres, Cover, Rating, Year) VALUES (?, ?, ?, ?, ?, ?, ?, ?);""", 
-            (movie.id, movie.title, movie.plot, movie.cast, movie.genres, movie.cover, movie.rating, movie.year))
+            (movie.id, movie.title, movie.plot, ','.join(movie.cast), ','.join(movie.genres), movie.cover, movie.rating, movie.year))
 
-    def unsave_movie(self, requester: int, movie: models.Movie):
+    def unsave_movie(self, requester_id: int, movie: models.Movie):
+        requester = str(requester_id)
         with WatchList() as wl:
             if requester not in wl:
                 wl[requester] = []
@@ -55,13 +58,15 @@ class Movies(slash.Group):
 
     @slash.command(name='search', description='Searches a movie or a series into the imdb database.')
     async def get_movie(self, interaction: discord.Interaction, title: str):
+        await interaction.response.defer()
         movies = self.__fetch_movie(title)
         embeds = [movie.embed for movie in movies]
         v = ui.MenuView(embeds)
-        await interaction.response.send_message(embed=embeds[0], view=v)
+        await interaction.followup.send(embed=embeds[0], view=v)
 
     @slash.command(name='add', description='Adds a movie to a WatchList.')
     async def add_movie(self, interaction: discord.Interaction, title: str, watchlist: WL = WL.Personal, choose: bool = False):
+        await interaction.response.defer()
         movies = self.__fetch_movie(title)
         if len(movies) == 0:
             embed = discord.Embed(
@@ -69,12 +74,12 @@ class Movies(slash.Group):
                 description=f"Searching {title} returned no result.", 
                 color=discord.Color.dark_red()
                 )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await interaction.followup.send(embed=embed, ephemeral=True)
             return
 
         if choose:
             v = ui.MovieView(movies)
-            await interaction.response.send_message(embed=movies[0].embed, view=v)
+            await interaction.followup.send(embed=movies[0].embed, view=v)
             await v.wait()
             movie = v.movie
         else:
@@ -94,13 +99,9 @@ class Movies(slash.Group):
                 raise ValueError()
 
         self.save_movie(requester.id, movie)
-        
-        if interaction.response.is_done():
-            respond = interaction.response.send_message
-        else:
-            respond = interaction.followup.send
 
-        await respond(
+
+        await interaction.followup.send(
             embed=discord.Embed(
                 title='Movie Saved',
                 description=f'{movie.title} has been saved to {person} WatchList',
@@ -123,26 +124,15 @@ class Movies(slash.Group):
             case _:
                 raise ValueError()
 
+        await interaction.response.defer()
+
         movies = self.watch_list(requester.id)
-        embeds: list[discord.Embed] = []
-        for lIndex in range(len(movies)//15):
-            embed = discord.Embed(title=f'{person} WatchList', description=f'Page {lIndex+1}', color=discord.Color.dark_blue())
+        if len(movies) == 0:
+            await interaction.followup.send(f'{person} WatchList is empty :(')
+            return
 
-            for movie in movies[lIndex * 15 : (lIndex+1) * 15]:
-                embed.add_field(name=movie.title, value=', '.join(movie.genres), inline=True)
-
-            embeds.append(embed)
-        
-        if len(movies) % 15:
-            embed = discord.Embed(title='Watch List', description=f'Page {(len(movies)//15)+1}', color=discord.Color.dark_blue())
-            
-            for movie in movies[(len(movies)//15) * 15 : len(movies)]:
-                embed.add_field(name=movie.title, value=', '.join(movie.genres), inline=True)
-            
-            embeds.append(embed)
-
-        v = ui.MenuView(embeds)
-        await interaction.response.send_message(embed=embeds[0], view=v)
+        v = ui.WLView(movies, person)
+        await interaction.followup.send(embed=v.embed, view=v)
 
     @slash.command(name='remove', description='Removes a movie from a WatchList')
     async def remove_movie(self, interaction: discord.Interaction, title: str, watchlist: WL = WL.Personal):

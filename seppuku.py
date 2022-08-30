@@ -1,7 +1,6 @@
 from dotenv import load_dotenv
 from discord import app_commands as slash
 from enum import Enum, auto
-from typing import Literal
 
 import asyncio
 import datetime
@@ -19,7 +18,7 @@ from resources import utils
 
 
 client = discord.Client(intents=discord.Intents.all())
-tree = slash.CommandTree(client=client)
+tree = slash.CommandTree(client)
 
 
 async def _handle_reddit(message: EmbeddableMessage) -> None:
@@ -84,10 +83,16 @@ class Action(Enum):
     Add = auto()
     Remove = auto()
 
+class CommandGroup(Enum):
+    Game = auto()
+    Movies = auto()
+    Utils = auto()
+    Spam = auto()
+
 @tree.command(name='commands', description='Add or remove a group of commands')
 @slash.check(lambda interaction: str(interaction.user.id) in database.friendship() and database.friendship()[str(interaction.user.id)] >= 5)
-async def edit_commands(interaction: discord.Interaction, command_group: Literal['Game', 'Movies', 'Utils', 'Spam'], action: Action):
-    group = tree.get_command(command_group.lower(), guild=interaction.guild)
+async def edit_commands(interaction: discord.Interaction, command_group: CommandGroup, action: Action):
+    group = tree.get_command(command_group.name.lower(), guild=interaction.guild)
     assert group is not None
 
     match action:
