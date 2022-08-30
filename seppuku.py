@@ -107,7 +107,30 @@ async def edit_commands(interaction: discord.Interaction, command_group: Command
     await tree.sync(guild=interaction.guild)
     await interaction.response.send_message(embed=discord.Embed(title='Success', description=f'{group.name} commands {action.name.removesuffix("e")}ed!', color=discord.Color.og_blurple()))
 
+class Monkes(Enum):
+    MonkeSam = "https://cdn.discordapp.com/attachments/908827837438496849/908827992908779530/ameriscimmia.jpg"
+    BananaScimmia = "https://cdn.discordapp.com/attachments/908827837438496849/908827995542794270/bananascimmia.jpg"
+    Joele = "https://cdn.discordapp.com/attachments/908827837438496849/908827999061827604/ciccioscimmia.jpg"
+    LastBanana = "https://cdn.discordapp.com/attachments/908827837438496849/908828000718577674/danu.jpg"
+    Danu = "https://cdn.discordapp.com/attachments/908827837438496849/908828001595174922/danuscimmia.jpg"
+    PuocoScimmia = "https://cdn.discordapp.com/attachments/908827837438496849/908828023653015654/piroscimmia.jpg"
+    IdroScimmia = "https://cdn.discordapp.com/attachments/908827837438496849/908828025632735332/idroscimmia.jpg"
+    DrScimmia = "https://cdn.discordapp.com/attachments/908827837438496849/908828028329664523/mediscimmia.jpg"
+    HARAMBO = "https://cdn.discordapp.com/attachments/908827837438496849/908828062894923806/haramboscimmia.jpg"
+    RejectHumanity = "https://cdn.discordapp.com/attachments/908827837438496849/908828080255139850/rejecthumanity.jpg"
+    HiroScimmia = "https://cdn.discordapp.com/attachments/908827837438496849/908828114107379722/Hiroscimmia.png"
+    FukuScimmia = "https://cdn.discordapp.com/attachments/908827837438496849/908828120717623306/Fukuscimmia.png"
+    TecnoScimmia = "https://cdn.discordapp.com/attachments/908827837438496849/908828128217006162/Tecnoscimmia.png"
+    TurboScimmia = "https://cdn.discordapp.com/attachments/908827837438496849/908828129903136778/Turboscimmia.png"
+    RamboScimmia = "https://cdn.discordapp.com/attachments/908827837438496849/908828134072254545/Ramboscimmia.png"
+    SballoScimmia = "https://cdn.discordapp.com/attachments/908827837438496849/908828134382661662/Sballoscimmia.png"
 
+
+@tree.command(name="monke", description="Sends a monke")
+async def send_monke(interaction: discord.Interaction, monke: Monkes = Monkes.IdroScimmia):
+    utils.add_friendship(interaction.user, 0.5)
+
+    await interaction.response.send_message(monke.value)
 
 if __name__ == '__main__':
     load_dotenv('./secrets/.env')
