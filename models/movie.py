@@ -35,7 +35,7 @@ class Movie:
     @classmethod
     def from_id(cls, id: str) -> Self:
         with Movies() as cur:
-            cur.execute("SELECT * FROM Movies WHERE ID=?", (int(id),))
+            cur.execute("SELECT * FROM Movies WHERE ID=?", (id,))
             movie = cur.fetchone()
             if movie is None:
                 movie = _imdb.get_movie(id)
