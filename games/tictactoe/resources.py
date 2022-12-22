@@ -5,8 +5,8 @@ from .typings import Position
 
 
 __all__ = (
-    'Turn',
-    'Board'
+    "Turn",
+    "Board"
 )
 
 class Turn(Enum):

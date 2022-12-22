@@ -5,6 +5,8 @@ import random
 from .resources import *
 from .typings import *
 
+from games.utils import punish
+
 
 
 class TicTacToeGame:
@@ -12,8 +14,8 @@ class TicTacToeGame:
     def __init__(self, interaction: discord.Interaction, opponent: Opponent):
         self.view = VTicTacToe(interaction.user, opponent)
         self.embed = discord.Embed(
-            title = 'Tic Tac Toe',
-            description = f'{interaction.user.display_name} vs {opponent.display_name}',
+            title = "Tic Tac Toe",
+            description = f"{interaction.user.display_name} vs {opponent.display_name}",
             color = discord.Colour.og_blurple()
         )
 
@@ -21,12 +23,12 @@ class TicTacToeGame:
 
 
 
-class FieldButton(discord.ui.Button['VTicTacToe']):
+class FieldButton(discord.ui.Button["VTicTacToe"]):
 
     def __init__(self, x: int, y: int):
         self.x = x
         self.y = y
-        super().__init__(label='\u200b', row=y)
+        super().__init__(label="\u200b", row=y)
 
     async def change_style(self):
         assert self.view is not None
@@ -42,10 +44,10 @@ class FieldButton(discord.ui.Button['VTicTacToe']):
         assert self.view is not None
         # Checks
         if interaction.user not in self.view.players.values():
-            await interaction.response.send_message('You are not playing', ephemeral=True)
+            await punish(interaction, -0.9)
             return
         if interaction.user != self.view.players[self.view.turn]:
-            await interaction.response.send_message('Wait for your turn', ephemeral=True)
+            await interaction.response.send_message("Wait for your turn", ephemeral=True)
             return
 
         await interaction.response.defer()
@@ -63,7 +65,7 @@ class FieldButton(discord.ui.Button['VTicTacToe']):
         children = self.view.children
         if self.view.check_win():
             self.view._done()
-            self.view.winner = interaction.user # type: ignore[valid-type]
+            self.view.winner = interaction.user 
             for child in children:
                 child.disabled = True
             return
@@ -76,17 +78,21 @@ class FieldButton(discord.ui.Button['VTicTacToe']):
 class VTicTacToe(discord.ui.View):
 
     children: list[FieldButton]
-    board: Board = Board()
-    winner: User | None = None
-    turn: Turn = random.choice(tuple(Turn._member_map_.values())) # type: ignore
+
+    board: Board
+    players: dict[Turn, Player]
+    winner: User
+    turn: Turn
     
     def __init__(self, player1: User, player2: Opponent):
         super().__init__()
         
-        self.players: dict[Turn, Player] = {
+        self.board = Board()
+        self.players = {
             Turn.X: player1,
             Turn.O: player2
-            }
+        }
+        self.turn = random.choice(tuple(Turn))
 
         for x in range(3):
             for y in range(3):

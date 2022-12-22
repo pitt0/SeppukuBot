@@ -1,16 +1,16 @@
-from typing import Literal, TypeAlias
+from typing import Literal
 
 import discord
 
 __all__ = (
-    'Position',
-    'User',
-    'Opponent',
-    'Player'
+    "Position",
+    "User",
+    "Opponent",
+    "Player"
 )
 
-Position: TypeAlias = Literal[-1, 0, 1]
+Position = Literal[-1, 0, 1]
 
-User: TypeAlias = discord.User | discord.Member
-Opponent: TypeAlias = discord.Member | discord.ClientUser
-Player: TypeAlias = User | Opponent
+User = discord.User | discord.Member
+Opponent = discord.Member | discord.ClientUser
+Player = User | Opponent

@@ -1,74 +1,56 @@
-from typing import Literal
 import discord
 import random
 
 from games.abc import VJoinable, ELobby
 from .resources import *
-from .typings import *
 
 from ui import MenuView
 
-class BJLobby:
 
-    lobby: list[Player]
+class BJLobby(list[Player]):
 
     def __init__(self, interaction: discord.Interaction) -> None:
+        super().__init__()
         self.interaction = interaction
 
-        self.view = VJoinable(interaction.user)
-        self.embed = ELobby(interaction.user)
-
-    def __iter__(self):
-        return (player for player in self.lobby)
-
-    def __getitem__(self, index: int) -> Player:
-        return self.lobby[index]
-
-    def index(self, user: discord.User | discord.Member) -> int:
-        return self.lobby.index(user) # type: ignore
-
-    # def remove(self, player: Player) -> None:
-    #     return self.lobby.remove(player)
-
     async def run(self):
-        await self.interaction.response.send_message(embed=self.embed, view=self.view)
-        await self.view.wait()
-        self.lobby = []
-        for user in self.view.lobby:
-            self.lobby.append(Player(user))
+        view = VJoinable(self.interaction.user)
+        await self.interaction.response.send_message(embed=ELobby(self.interaction.user), view=view)
+        await view.wait()
+        
+        for user in view.lobby:
+            self.append(Player(user))
 
 class BJGame:
 
     __slots__ = (
-        'deck',
-        'lobby',
-        'dealer',
+        "deck",
+        "lobby",
+        "dealer",
     )
 
     deck: list[Card]
     lobby: BJLobby
     dealer: Dealer
 
-    def __init__(self, lobby: BJLobby) -> None:
-        self.lobby = lobby
+    def __init__(self, interaction: discord.Interaction) -> None:
+        self.lobby = BJLobby(interaction)
 
     def shuffle_deck(self) -> None:
         self.deck = []
-        for _ in range(2):
-            for suit in Suits:
-                for value in CardValues:
-                    self.deck.append(Card(value, suit))
+        
+        for suit in Suits:
+            for value in CardValues:
+                self.deck.append(Card(value, suit))
 
+        self.deck *= 2 # There are two decks of cards
         random.shuffle(self.deck)
     
-    def embeds(self, current_player: Player) -> list[discord.Embed]:
+    def embeds(self, current: Player) -> list[discord.Embed]:
         es = []
         es.append(self.dealer.embed)
         for player in self.lobby:
-            if player != current_player:
-                player.embed.title = player.name
-                player.embed.description = f"{player.name}'s score is {player.score}"
-            es.append(player.embed)
+            es.append(player.embed(player == current))
         return es
 
     async def update_lobby(self):
@@ -79,8 +61,11 @@ class BJGame:
 
     def hit(self, player: Player | Dealer, visible: bool = True) -> None:
         card = self.deck.pop(-1)
-        card.face = int(visible) # type: ignore
+        card.visible = visible
         player.draw(card)
+
+    async def create_lobby(self) -> None:
+        await self.lobby.run()
 
     async def start(self) -> None:
         self.dealer = Dealer()
@@ -94,10 +79,10 @@ class BJGame:
     async def turn_of(self, player: Player):
         view = VBlackJack()
         await player.edit_message(view=view)
-        await view.wait()
-        if view.result:
+        clicked = not await view.wait()
+        if (clicked and view.card):
             self.hit(player)
-            if player.score >= 21:
+            if (player.score >= 21):
                 player.stay()
         else:
             player.stay()
@@ -106,51 +91,48 @@ class BJGame:
     async def end(self) -> None:
         high_score = 0
         for player in sorted(self.lobby, key=lambda p: p.score, reverse=True):
-            if player.score < 20:
+            if (player.score < 20):
                 high_score = player.score
                 break
         
-        while self.dealer.score < high_score:
+        while (self.dealer.score < high_score):
             self.hit(self.dealer)
 
         for player in self.lobby:
-            if self.dealer.score <= player.score <= 21 or player.score <= 21 < self.dealer.score:
+            if (self.dealer.score <= player.score <= 21 or player.score <= 21 < self.dealer.score):
                 await player.win(self.dealer)
             else:
                 await player.lose(self.dealer)
 
     async def run(self):
         await self.start()
-        while True:
+        while (True):
             for player in self.lobby:
-                if player.playing:
+                if (player.playing):
                     await self.turn_of(player)
-            if not any(p.playing for p in self.lobby):
+            if (not any(p.playing for p in self.lobby)):
                 break
         await self.end()
 
 
 class VBlackJack(discord.ui.View):
 
-    result: Literal[1, 0]
-
-    def __init__(self) -> None:
-        super().__init__()
+    card: bool
 
 
-    @discord.ui.button(label='Hit')
+    @discord.ui.button(label="Hit")
     async def give_card(self, interaction: discord.Interaction, _) -> None:
         await interaction.response.defer()
-        self.result = 1
+        self.card = True
         # await asyncio.sleep(1)
         self.stop()
         # return
 
 
-    @discord.ui.button(label='Stand')
+    @discord.ui.button(label="Stand")
     async def _stop(self, interaction: discord.Interaction, _) -> None:
         await interaction.response.defer()
-        self.result = 0
+        self.card = False
         # await asyncio.sleep(1)
         self.stop()
         # return

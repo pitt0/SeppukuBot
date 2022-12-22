@@ -1,5 +1,6 @@
 from .tictactoe.game import TicTacToeGame
 from .slides.game import SlidesGame
-from .roulette.game import RouletteGame, Choice as RouletteChoice
+from .roulette.game import RouletteGame
 from .slots.game import SlotsGame
-from .blackjack.game import BJLobby, BJGame
+from .blackjack.game import BJGame
+from .raffle.game import RaffleGame
