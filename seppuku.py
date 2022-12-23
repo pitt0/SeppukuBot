@@ -1,5 +1,5 @@
-from dotenv import load_dotenv
 from discord import app_commands as slash
+from dotenv import load_dotenv
 from enum import Enum, auto
 
 import asyncio
@@ -9,48 +9,51 @@ import os
 import pytz
 import random
 
-import constants as const
 import groups
 
 from models import EmbeddableMessage
-from resources import database
+from resources import Friendship
 from resources import utils
 
 
 client = discord.Client(intents=discord.Intents.all())
 tree = slash.CommandTree(client)
 
+MEMAS_ID = int(os.getenv("MEME_CHANNEL_ID", 0))
+
 
 async def _handle_reddit(message: EmbeddableMessage) -> None:
-    if message.is_reddit():
-        embed = message.to_embed()
-        memas_channel: discord.TextChannel = await client.fetch_channel(const.MEMAS_ID) # type: ignore[valid-type]
-        await message.delete()
-        await memas_channel.send(embed=embed)
+    if (not message.is_reddit()):
+        return
+    
+    embed = message.to_embed()
+    memas_channel: discord.TextChannel = await client.fetch_channel(MEMAS_ID) # type: ignore[valid-type]
+    await message.delete()
+    await memas_channel.send(embed=embed)
+
 
 async def _handle_bananas(message: EmbeddableMessage) -> None:
-    reaction: discord.RawReactionActionEvent
+    user: discord.User
 
-    if not message.reactable():
+    if (not message.reactable()):
         return
 
-    send = random.random()
-    if send > 0.25:
+    if (not utils.event(0.25)):
         return
     
     await asyncio.sleep(random.random() * 3)
-    await message.channel.send('pass me the banana')
+    await message.channel.send("pass me the banana")
 
-    reaction = await client.wait_for('raw_reaction_add')
+    def check(r: discord.Reaction):
+        print("someone reacted")
+        return str(r.emoji) == "🍌"
 
-    if reaction.emoji.name == '🍌':
-        friendships = database.friendship()
-        if str(message.author.id) not in friendships:
-            friendships[str(message.author.id)] = 0
-
-        friendships[str(message.author.id)] += 1
-        database.edit_friendship(friendships)
-
+    try:
+        _, user = await client.wait_for("reaction_add", timeout=300.0, check=check)
+    except asyncio.TimeoutError:
+        return
+    else:
+        utils.add_friendship(user, 1)
 
 
 # events
@@ -61,21 +64,20 @@ async def on_ready():
 
     await tree.sync()
 
-    await client.change_presence(activity=discord.Game(name='Monke'))
-    now = datetime.datetime.now(tz=pytz.timezone('Europe/Rome')).strftime('%H:%M:%S')
-    print(f'[{now}] Bot started')
+    await client.change_presence(activity=discord.Game(name="Monke"))
+    now = datetime.datetime.now(tz=pytz.timezone("Europe/Rome"))
+    print(f"[{now:%T}] Bot started")
 
 @client.event
 async def on_message(message: discord.Message):
     utils.add_friendship(message.author, round(random.random(), 2))
 
-    if isinstance(message.channel, discord.DMChannel):
+    if (isinstance(message.channel, discord.DMChannel)):
         return
-    _message = EmbeddableMessage(message)
-    if _message.is_reddit():
-        await _handle_reddit(_message)
-    await _handle_bananas(_message)
 
+    _message = EmbeddableMessage(message)
+    await _handle_reddit(_message)
+    await _handle_bananas(_message)
 
 
 # slashes
@@ -89,8 +91,8 @@ class CommandGroup(Enum):
     Utils = auto()
     Spam = auto()
 
-@tree.command(name='commands', description='Add or remove a group of commands')
-@slash.check(lambda interaction: str(interaction.user.id) in database.friendship() and database.friendship()[str(interaction.user.id)] >= 5)
+@tree.command(name="commands", description="Add or remove a group of commands")
+@slash.check(lambda interaction: Friendship.load(str(interaction.user.id)) >= 5)
 async def edit_commands(interaction: discord.Interaction, command_group: CommandGroup, action: Action):
     group = tree.get_command(command_group.name.lower(), guild=interaction.guild)
     assert group is not None
@@ -100,12 +102,18 @@ async def edit_commands(interaction: discord.Interaction, command_group: Command
             try:
                 tree.add_command(group, guild=interaction.guild)
             except slash.CommandAlreadyRegistered:
-                await interaction.response.send_message(f'{group.name} commands are already loaded.', ephemeral=True)
+                await interaction.response.send_message(f"{group.name} commands are already loaded.", ephemeral=True)
                 return
         case Action.Remove:
             tree.remove_command(group.name, guild=interaction.guild)
     await tree.sync(guild=interaction.guild)
-    await interaction.response.send_message(embed=discord.Embed(title='Success', description=f'{group.name} commands {action.name.removesuffix("e")}ed!', color=discord.Color.og_blurple()))
+    await interaction.response.send_message(
+        embed=discord.Embed(
+            title="Success", 
+            description=f"{group.name} commands {action.name.removesuffix('e')}ed!", 
+            color=discord.Color.og_blurple()
+        )
+    )
 
 class Monkes(Enum):
     MonkeSam = "https://cdn.discordapp.com/attachments/908827837438496849/908827992908779530/ameriscimmia.jpg"
@@ -132,6 +140,6 @@ async def send_monke(interaction: discord.Interaction, monke: Monkes = Monkes.Id
 
     await interaction.response.send_message(monke.value)
 
-if __name__ == '__main__':
-    load_dotenv('./secrets/.env')
-    client.run(os.getenv('TOKEN')) # type: ignore
+if __name__ == "__main__":
+    load_dotenv("./secrets/.env")
+    client.run(os.getenv("TOKEN", ""))

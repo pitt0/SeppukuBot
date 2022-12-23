@@ -19,12 +19,12 @@ class EmbeddableMessage(discord.Message):
     def reactable(self) -> bool:
         return (
             self.message.guild is not None and
-            database.settings()['banana'] and
-            any(trigger in self.message.content.casefold() for trigger in database.triggers())
+            database.Settings.load("banana") and
+            any(trigger in self.message.content.casefold() for trigger in database.Triggers.load())
         )
 
     def is_reddit(self) -> bool:
-        return self.message.content.startswith('http') and 'reddit.com' in self.message.content
+        return self.message.content.startswith("http") and "reddit.com" in self.message.content
 
     def to_embed(self) -> discord.Embed:
         content = self.message.content
@@ -34,12 +34,12 @@ class EmbeddableMessage(discord.Message):
         
         embed = discord.Embed(
             title=submission.title,
-            url=f'https://reddit.com/{submission.permalink}',
+            url=f"https://reddit.com/{submission.permalink}",
             color=discord.Color.og_blurple(),
-            description=f'by u/{submission.author} in r/{submission.subreddit}'
+            description=f"by u/{submission.author} in r/{submission.subreddit}"
         )
         embed.set_author(name=author.display_name, icon_url=author.avatar.url if author.avatar is not None else None)
-        embed.set_image(url=submission.url if not submission.is_self else 'http://localhost:8080')
+        embed.set_image(url=submission.url if not submission.is_self else "http://localhost:8080")
 
         return embed
 

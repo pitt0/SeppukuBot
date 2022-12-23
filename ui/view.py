@@ -18,7 +18,7 @@ class MenuView(discord.ui.View):
 
     @index.setter
     def index(self, value: int):
-        assert (0 <= value <= len(self.embeds) - 1), f'Value set for index: {value}'
+        assert (0 <= value <= len(self.embeds) - 1), f"Value set for index: {value}"
 
         self.embed = self.embeds[value]
 
@@ -27,25 +27,25 @@ class MenuView(discord.ui.View):
 
         self.__index = value
 
-    @discord.ui.button(label='<<')
+    @discord.ui.button(label="<<")
     async def _to_first(self, interaction: discord.Interaction, _):
         self.index = 0
 
         await interaction.response.edit_message(embed=self.embed, view=self)
 
-    @discord.ui.button(label='<')
+    @discord.ui.button(label="<")
     async def back(self, interaction: discord.Interaction, _):
         self.index -= 1
 
         await interaction.response.edit_message(embed=self.embed, view=self)
 
-    @discord.ui.button(label='>')
+    @discord.ui.button(label=">")
     async def forward(self, interaction: discord.Interaction, _):
         self.index += 1
 
         await interaction.response.edit_message(embed=self.embed, view=self)
 
-    @discord.ui.button(label='>>')
+    @discord.ui.button(label=">>")
     async def _to_last(self, interaction: discord.Interaction, _):
         self.index = len(self.embeds) - 1
 
