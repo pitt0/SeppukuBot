@@ -1,8 +1,15 @@
+from discord.utils import MISSING
+from typing import Any, Generic
+from typing import TypeVar, TypedDict
 from typing import overload
 
 import json
 import sqlite3 as sql
 
+# from models.database import Commands as CommandEntry
+
+
+T = TypeVar("T")
 
 
 class Movies:
@@ -13,56 +20,71 @@ class Movies:
     def __enter__(self):
         return self.connection.cursor()
 
-    def __exit__(self, *args):
+    def __exit__(self, *_):
         self.connection.commit()
         self.connection.close()
 
 
-class WatchList:
 
-    path = "database/movies/watchlist.json"
+class JSONContextManager(Generic[T]):
 
-    cache: dict[str, list[str]]
+    path = "database/"
+    file: str
+
+    cache: T
 
     @classmethod
+    def load(cls) -> T:
+        with open(cls.path + cls.file) as f:
+            return json.load(f)
+
+    def __enter__(self) -> T:
+        with open(self.path + self.file) as f:
+            self.cache = json.load(f)
+            return self.cache
+
+    def __exit__(self, *_) -> None:
+        with open(self.path + self.file, "w") as f:
+            json.dump(self.cache, f, indent=4)
+
+
+
+class WatchList(JSONContextManager[dict[str, list[str]]]):
+
+    file = "movies/watchlist.json"
+
+    @classmethod
+    @overload
+    def load(cls, requester: int) -> list[str]:
+        ...
+
+    @classmethod
+    @overload
     def load(cls) -> dict[str, list[str]]:
-        with open(cls.path) as f:
-            return json.load(f)
-
-    def __enter__(self) -> dict[str, list[str]]:
-        with open(self.path) as f:
-            self.cache = json.load(f)
-            return self.cache
-
-    def __exit__(self, *args):
-        with open(self.path, "w") as f:
-            json.dump(self.cache, f, indent=4)
-
-class Commands:
-
-    path = "database/commands.json"
-
-    cache: dict[str, bool]
+        ...
 
     @classmethod
-    def load(cls) -> dict[str, bool]:
-        with open(cls.path) as f:
-            return json.load(f)
+    def load(cls, requester: int = MISSING) -> Any:
+        data = super().load()
+        if requester is not MISSING:
+            return data.get(str(requester), [])
+        return data
 
-    def __enter__(self) -> dict[str, bool]:
-        with open(self.path) as f:
-            self.cache = json.load(f)
-            return self.cache
 
-    def __exit__(self, *_):
-        with open(self.path, "w") as f:
-            json.dump(self.cache, f, indent=4)
 
-class Settings:
+class CommandEntry(TypedDict):
+    command: str
+    active: str
 
-    path = "database/settings.json"
+class Commands(JSONContextManager[CommandEntry]):
 
-    cache: dict[str, bool]
+    file = "commands.json"
+
+
+
+class Settings(JSONContextManager[dict[str, bool]]):
+
+    file = "settings.json"
 
     @overload
     @classmethod
@@ -75,28 +97,18 @@ class Settings:
         ...
 
     @classmethod
-    def load(cls, entry: str | None = None):
-        with open(cls.path) as f:
+    def load(cls, entry: str | None = None) -> Any:
+        with open(cls.path + cls.file) as f:
             if not entry:
                 return json.load(f)
             
             return json.load(f)[entry]
-            
 
-    def __enter__(self) -> dict[str, bool]:
-        with open(self.path) as f:
-            self.cache = json.load(f)
-            return self.cache
 
-    def __exit__(self, *_):
-        with open(self.path, "w") as f:
-            json.dump(self.cache, f, indent=4)
 
-class Friendship:
+class Friendship(JSONContextManager[dict[str, float]]):
 
-    path = "database/friendship.json"
-
-    cache: dict[str, float]
+    file = "friendship.json"
 
     @overload
     @classmethod
@@ -109,8 +121,8 @@ class Friendship:
         ...
 
     @classmethod
-    def load(cls, user_id: str | None = None):
-        with open(cls.path) as f:
+    def load(cls, user_id: str | None = None) -> Any:
+        with open(cls.path + cls.file) as f:
             fs = json.load(f)
 
             if (not user_id):
@@ -122,31 +134,13 @@ class Friendship:
             return fs[user_id]
 
 
-    def __enter__(self) -> dict[str, float]:
-        with open(self.path) as f:
-            self.cache = json.load(f)
-        return self.cache
 
-    def __exit__(self, *_):
-        with open(self.path, "w") as f:
-            json.dump(self.cache, f, indent=4)
+class Triggers(JSONContextManager[list[str]]):
 
-class Triggers:
+    file = "triggers.json"
 
-    path = "database/triggers.json"
 
-    cache: list[str]
-
-    @classmethod
-    def load(cls) -> list[str]:
-        with open(cls.path) as f:
-            return json.load(f)
-
-    def __enter__(self) -> list[str]:
-        with open(self.path) as f:
-            self.cache = json.load(f)
-        return self.cache
-
-    def __exit__(self, *_):
-        with open(self.path, "w") as f:
-            json.dump(self.cache, f, indent=4)
+def monke(monke: str):
+    with open("database/monkes.json") as f:
+        data = json.load(f)
+    return data[monke]

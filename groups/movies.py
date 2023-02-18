@@ -4,10 +4,11 @@ from enum import Enum, auto
 import discord
 import imdb as IMDb
 
-import models
 import ui
 
-from resources.database import WatchList, Movies as MovieDB
+from models import Movie
+from models import DBMovie, IMDBMovie
+from resources.database import WatchList
 
 
 
@@ -20,36 +21,19 @@ class Movies(slash.Group):
 
     imdb: IMDb.IMDbBase = IMDb.IMDb()
 
-    def __fetch_movie(self, title: str) -> list[models.Movie]:
-        movies = []
-        for movie in self.imdb.search_movie(title, results=5):
-            movies.append(models.Movie.from_imdb(movie))
+    def watch_list(self, requester_id: int) -> list[Movie]:
+        return [DBMovie.load(movieID) for movieID in WatchList.load(requester_id)]
 
-        return movies
-
-    def watch_list(self, requester_id: int) -> list[models.Movie]:
-        requester = str(requester_id)
-        movies: list[models.Movie] = []
-        with WatchList() as wl:
-            if (requester not in wl):
-                return []
-            for movieID in wl[requester]:
-                movies.append(models.Movie.from_id(movieID))
-
-        return movies
-
-    def save_movie(self, requester_id: int, movie: models.Movie):
+    def save_movie(self, requester_id: int, movie: Movie) -> None:
         requester = str(requester_id)
         with WatchList() as wl:
             if (requester not in wl):
                 wl[requester] = []
             wl[requester].append(movie.id)
         
-        with MovieDB() as cur:
-            cur.execute("""INSERT INTO Movies (ID, Title, Plot, Cast, Genres, Cover, Rating, Year) VALUES (?, ?, ?, ?, ?, ?, ?, ?);""", 
-            (movie.id, movie.title, movie.plot, ",".join(movie.cast), ",".join(movie.genres), movie.cover, movie.rating, movie.year,))
+        movie.upload()
 
-    def unsave_movie(self, requester_id: int, movie: models.Movie):
+    def unsave_movie(self, requester_id: int, movie: Movie) -> None:
         requester = str(requester_id)
         with WatchList() as wl:
             if (requester not in wl):
@@ -59,20 +43,18 @@ class Movies(slash.Group):
                 wl[requester].remove(movie.id)
 
     @slash.command(name="search", description="Searches a movie or a series into the imdb database.")
-    async def get_movie(self, interaction: discord.Interaction, title: str):
+    async def get_movie(self, interaction: discord.Interaction, title: str) -> None:
         await interaction.response.defer()
-        movies = self.__fetch_movie(title)
-        embeds: list[discord.Embed] = []
-        for movie in movies:
-            embeds.append(movie.embed)
+        movies = IMDBMovie.search(title, 5)
+        embeds = movies.select(lambda movie: movie.embed)
         v = ui.MenuView(embeds)
         await interaction.followup.send(embed=embeds[0], view=v)
 
     @slash.command(name="add", description="Adds a movie to a WatchList.")
-    async def add_movie(self, interaction: discord.Interaction, title: str, watchlist: WL = WL.Personal, choose: bool = False):
+    async def add_movie(self, interaction: discord.Interaction, title: str, watchlist: WL = WL.Personal, choose: bool = False) -> None:
         await interaction.response.defer()
-        movies = self.__fetch_movie(title)
-        if len(movies) == 0:
+        movies = IMDBMovie.search(title, 5)
+        if movies.empty:
             embed = discord.Embed(
                 title="Couldn't find anything :(", 
                 description=f"Searching {title} returned no result.", 
@@ -82,7 +64,7 @@ class Movies(slash.Group):
             return
 
         if choose:
-            v = ui.MovieView(movies)
+            v = ui.MovieView(movies) # type: ignore
             await interaction.followup.send(embed=movies[0].embed, view=v)
             await v.wait()
             movie = v.movie
@@ -116,7 +98,7 @@ class Movies(slash.Group):
             )
     
     @slash.command(name="watchlist", description="Sends the list of the movies in the a WatchList.")
-    async def send_watchlist(self, interaction: discord.Interaction, watchlist: WL = WL.Personal):
+    async def send_watchlist(self, interaction: discord.Interaction, watchlist: WL = WL.Personal) -> None:
         match watchlist:
             case WL.Personal:
                 requester = interaction.user
@@ -143,8 +125,8 @@ class Movies(slash.Group):
         await interaction.followup.send(embed=v.embed, view=v)
 
     @slash.command(name="remove", description="Removes a movie from a WatchList")
-    async def remove_movie(self, interaction: discord.Interaction, title: str, watchlist: WL = WL.Personal):
-        movie = self.__fetch_movie(title)[0]
+    async def remove_movie(self, interaction: discord.Interaction, title: str, watchlist: WL = WL.Personal) -> None:
+        movie = IMDBMovie.search(title, 1)[0]
         match watchlist:
             case WL.Personal:
                 requester = interaction.user

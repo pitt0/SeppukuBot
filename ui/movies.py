@@ -1,20 +1,20 @@
+from list_ext import List
+
 import discord
-import models
+
+from models import Movie
 
 
 class MovieView(discord.ui.View):
 
     children: list[discord.ui.Button]
     embed: discord.Embed
-    movie: models.Movie
+    movie: Movie
 
-    def __init__(self, movies: list[models.Movie]):
+    def __init__(self, movies: List[Movie]):
         super().__init__()
         self.movies = movies
-        self.embeds = []
-        for movie in movies:
-            self.embeds.append(movie.embed)
-
+        self.embeds = movies.select(lambda movie: movie.embed)
         self.index = 0
 
     @property
@@ -56,3 +56,7 @@ class MovieView(discord.ui.View):
         self.index = len(self.embeds) - 1
 
         await interaction.response.edit_message(embed=self.embed, view=self)
+
+    @discord.ui.button(emoji="✔️")
+    async def choose(self, interaction: discord.Interaction, _):
+        self.stop()

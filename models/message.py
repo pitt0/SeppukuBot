@@ -1,6 +1,7 @@
 from praw.models import Submission
 
 import discord
+import yarl
 
 from resources.reddit import reddit
 import resources.database as database
@@ -24,7 +25,10 @@ class EmbeddableMessage(discord.Message):
         )
 
     def is_reddit(self) -> bool:
-        return self.message.content.startswith("http") and "reddit.com" in self.message.content
+        url = yarl.URL(self.message.content)
+        if not url.is_absolute():
+            return False
+        return url.origin() == "https://www.reddit.com"
 
     def to_embed(self) -> discord.Embed:
         content = self.message.content

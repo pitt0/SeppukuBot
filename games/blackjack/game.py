@@ -37,20 +37,13 @@ class BJGame:
         self.lobby = BJLobby(interaction)
 
     def shuffle_deck(self) -> None:
-        self.deck = []
-        
-        for suit in Suits:
-            for value in CardValues:
-                self.deck.append(Card(value, suit))
-
+        self.deck = [Card(value, suit) for suit in Suits for value in CardValues]
         self.deck *= 2 # There are two decks of cards
         random.shuffle(self.deck)
     
     def embeds(self, current: Player) -> list[discord.Embed]:
-        es = []
+        es = [player.embed(player == current) for player in self.lobby]
         es.append(self.dealer.embed)
-        for player in self.lobby:
-            es.append(player.embed(player == current))
         return es
 
     async def update_lobby(self):

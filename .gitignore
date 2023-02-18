@@ -1,6 +1,9 @@
-__pycache__
+__pycache__/
+.vscode/
 
-secrets
-database
+/database/
+/samples/
+/secrets/
 
+ex.py
 leaderboard.json

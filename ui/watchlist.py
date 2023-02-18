@@ -17,6 +17,8 @@ class WLView(discord.ui.View):
         self.movies = movies
         self.person = person
 
+        self.pages = []
+
         self._divide_movies()
 
         self.index = 0
@@ -24,16 +26,14 @@ class WLView(discord.ui.View):
 
     def _divide_movies(self):
         for i in range(len(self.movies)//15):
-            page = []
-            for movie in self.movies[i * 15 : (i + 1) * 15]:
-                page.append(movie)
-            self.pages.append(page)
+            page = self.movies[i * 15 : (i + 1) * 15]
+            movies = [movie for movie in page]
+            self.pages.append(movies)
         
         if len(self.movies) % 15:
-            page = []
-            for movie in self.movies[(len(self.movies)//15) * 15 : len(self.movies)]:
-                page.append(movie)
-            self.pages.append(page)
+            page = self.movies[(len(self.movies)//15) * 15 : len(self.movies)]
+            movies = [movie for movie in page]
+            self.pages.append(movies)
 
     def _generate_embed(self):
         self.embed = discord.Embed(
@@ -44,7 +44,7 @@ class WLView(discord.ui.View):
         for movie in self.pages[self.index]:
             self.embed.add_field(
                 name=movie.title, 
-                value=", ".join(movie.genres), 
+                value=movie.genres, 
                 inline=True
             )
     
@@ -60,7 +60,7 @@ class WLView(discord.ui.View):
             self._to_remove.options.append(
                 discord.SelectOption(
                     label=movie.title,
-                    description=movie.cast[0],
+                    description=movie.cast,
                     value=str(self.movies.index(movie))
                 )
             )

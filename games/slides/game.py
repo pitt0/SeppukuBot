@@ -1,8 +1,7 @@
 from typing import Sequence
-from typing_extensions import Self
+from typing import Self
 
 import discord
-import json
 import random
 
 from games.leaderboard import Leaderboard
@@ -67,13 +66,11 @@ class SlidePuzzle(discord.ui.View):
 
     
     def set_size(self, size: int) -> None:
-        items: list[str] = []
-        tiles: list[str] = []
-
-        for num in range((size**2)-1):
-            items.append(str(num+1))
-        for _ in range(len(items)):
-            tiles.append(items.pop(random.randint(0, len(items)-1)))
+        items: list[str] = [str(num+1) for num in range((size**2)-1)]
+        tiles: list[str] = [
+            items.pop(random.randint(0, len(items)-1))
+            for _ in range(len(items))
+        ]
         
         while not self.solvable(tiles):
             random.shuffle(tiles)
@@ -114,9 +111,8 @@ class SlidePuzzle(discord.ui.View):
     async def check_win(self) -> bool:
         items = tuple(str(num+1) for num in range(self.size*self.size))
         for index, child in enumerate(self.children):
-            if items[index] == child.label or child.label == "\u200b":
-                continue
-            return False
+            if not (items[index] == child.label or child.label == "\u200b"):
+                return False
         return True
 
     async def end_game(self) -> None:
