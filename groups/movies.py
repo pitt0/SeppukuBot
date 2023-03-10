@@ -53,23 +53,23 @@ class Movies(slash.Group):
     @slash.command(name="add", description="Adds a movie to a WatchList.")
     async def add_movie(self, interaction: discord.Interaction, title: str, watchlist: WL = WL.Personal, choose: bool = False) -> None:
         await interaction.response.defer()
-        movies = IMDBMovie.search(title, 5)
-        if movies.empty:
-            embed = discord.Embed(
-                title="Couldn't find anything :(", 
-                description=f"Searching {title} returned no result.", 
-                color=discord.Color.dark_red()
-            )
-            await interaction.followup.send(embed=embed, ephemeral=True)
-            return
+        if not choose:
+            movie = IMDBMovie.search(title, 1)[0]
+        else:
+            movies = IMDBMovie.search(title, 5)
+            if movies.empty:
+                embed = discord.Embed(
+                    title="Couldn't find anything :(", 
+                    description=f"Searching {title} returned no result.", 
+                    color=discord.Color.dark_red()
+                )
+                await interaction.followup.send(embed=embed, ephemeral=True)
+                return
 
-        if choose:
             v = ui.MovieView(movies) # type: ignore
             await interaction.followup.send(embed=movies[0].embed, view=v)
             await v.wait()
             movie = v.movie
-        else:
-            movie = movies[0]
 
         match watchlist:
             case WL.Personal:

@@ -26,7 +26,6 @@ class Movie:
     
     @cached_property
     def genres(self) -> str:
-        print(self._genres)
         return ", ".join(self._genres)
     
 
@@ -87,22 +86,21 @@ class Movie:
         .add_field(name="Genres", value=self.genres, inline=False)\
         .add_field(name="Rating", value=self.rating)\
         .add_field(name="Released", value=self.release_date)\
-        .add_field(name="Rating", value=self.runtime)\
+        .add_field(name="Runtime", value=self.runtime)\
         .set_thumbnail(url=self.cover)
-    
-    def missing(self, cast: list[str]) -> list[str]:
-        n = self._cast.copy()
-        for person in cast:
-            n.remove(person)
-        return n
 
-    def add_people(self, cur, cast: list[str]) -> None:
-        if len(cast) < len(self._cast):
-            n = self.missing(cast)
-            _imdb = imdb.IMDb()
-            for person in n:
-                p_id = _imdb.search_person(person)[0].getID()
-                cur.execute("INSERT INTO person (person_id, person_name) VALUES (?, ?);", (p_id, person))
+    def complete_cast(self, cur) -> list[str]:
+        known = cur.fetchall()
+        if len(known) >= len(self._cast):
+            return known
+        
+        _imdb = imdb.IMDb()
+        unknown = list(set(self._cast) - set(person[1] for person in known))
+        for person in unknown:
+            p_id = _imdb.search_person(person)[0].getID()
+            cur.execute("INSERT INTO person (person_id, person_name) VALUES (?, ?);", (p_id, person))
+            known.append((person, p_id))
+        return known
 
     def upload(self) -> None:
         with Movies() as cur:
@@ -116,9 +114,8 @@ class Movie:
                 cur.execute("INSERT INTO movie_genres (movie_id, genre_id) VALUES (?, ?);", (self.id, genre[0]))
 
             c = ", ".join(f"'{person}'" for person in self._cast)
-            cur.execute(f"SELECT person_id FROM person WHERE person_name in ({c});")
-            cast = cur.fetchall()
-            self.add_people(cur, cast)
+            cur.execute(f"SELECT * FROM person WHERE person_name IN ({c});")
+            cast = self.complete_cast(cur)
             for person in cast:
                 cur.execute("INSERT INTO movie_cast (movie_id, person_id) VALUES (?, ?);", (self.id, person[0]))
     
@@ -253,10 +250,11 @@ class IMDBMovie(Movie):
     def load(cls, movie_id: str) -> Self:
         _imdb = imdb.IMDb()
         movie = _imdb.get_movie(movie_id)
-        return cls(movie, movie.get("cast", ["-"]), movie.get("genre", ["-"])) # type: ignore
+        return cls(movie, [str(person) for person in movie.get("cast", ["-"])], movie.get("genre", ["-"])) # type: ignore
     
     @classmethod
     def search(cls, query: str, results: int = 1) -> List[Self]:
+        # TODO: overload this to return only one Movie if result==1
         _imdb = imdb.IMDb()
         movies = _imdb.search_movie(query, results=results)
         return List(cls.load(movie.getID()) for movie in movies) # type: ignore
